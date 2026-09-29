@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -229,5 +230,64 @@ func TestIdempotencyKeyIsTrimmed(t *testing.T) {
 	}
 	if cap.idempotencyKey != "018fb9b4-95f3-4a47-8f08-27466f7d4c1d" {
 		t.Fatalf("header not trimmed: %q", cap.idempotencyKey)
+	}
+}
+
+func TestSupplementPayment(t *testing.T) {
+	k := newTestKeys(t)
+	cap := &capture{}
+	srv := verifyingServer(t, k, `{"orderNo":"P1","merchantOrderNo":"M1","status":"PROCESSING","currency":"INR","amount":"200.00","paidAmount":"0.00","paymentMethod":"IN_UPI","action":{}}`, cap)
+	defer srv.Close()
+	c := k.client(t, srv.URL, srv.Client())
+	ctx := context.Background()
+
+	order, err := c.SupplementPayment(ctx, &SupplementPaymentReq{OrderNo: " P1 ", TradeNo: " 412345678901 "})
+	if err != nil {
+		t.Fatalf("SupplementPayment: %v", err)
+	}
+	if order.OrderNo != "P1" || order.Status != "PROCESSING" {
+		t.Fatalf("unexpected order: %+v", order)
+	}
+	if string(cap.openedBody) != `{"orderNo":"P1","tradeNo":"412345678901"}` {
+		t.Fatalf("unexpected body: %s", cap.openedBody)
+	}
+	if cap.idempotencyKey == "" {
+		t.Fatal("idempotency key must be generated")
+	}
+
+	if _, err := c.SupplementPayment(ctx, &SupplementPaymentReq{MerchantOrderNo: "M1", TradeNo: "412345678901"}); err != nil {
+		t.Fatalf("by merchantOrderNo: %v", err)
+	}
+	if string(cap.openedBody) != `{"merchantOrderNo":"M1","tradeNo":"412345678901"}` {
+		t.Fatalf("unexpected body: %s", cap.openedBody)
+	}
+
+	for name, req := range map[string]*SupplementPaymentReq{
+		"missing tradeNo": {OrderNo: "P1", TradeNo: " "},
+		"no locator":      {TradeNo: "412345678901"},
+		"both locators":   {OrderNo: "P1", MerchantOrderNo: "M1", TradeNo: "412345678901"},
+	} {
+		if _, err := c.SupplementPayment(ctx, req); !errors.Is(err, ErrInvalidRequest) {
+			t.Fatalf("%s: want ErrInvalidRequest, got %v", name, err)
+		}
+	}
+	if _, err := c.SupplementPayment(ctx, nil); err != ErrNilRequest {
+		t.Fatalf("nil req: %v", err)
+	}
+}
+
+func TestSupplementPaymentChannelError(t *testing.T) {
+	k := newTestKeys(t)
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"code":12100019,"msg":"CHANNEL_ERROR","traceId":"t1","data":{"message":"upstream channel error"}}`))
+	}))
+	defer srv.Close()
+	c := k.client(t, srv.URL, srv.Client())
+	_, err := c.SupplementPayment(context.Background(), &SupplementPaymentReq{OrderNo: "P1", TradeNo: "412345678901"})
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusUnprocessableEntity || apiErr.Msg != "CHANNEL_ERROR" || apiErr.Code != 12100019 {
+		t.Fatalf("want CHANNEL_ERROR APIError, got %v", err)
 	}
 }

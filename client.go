@@ -71,6 +71,33 @@ func (c *Client) CreatePayout(ctx context.Context, req *CreatePayoutReq, opts ..
 	return &out, nil
 }
 
+// SupplementPayment submits the payer's transfer reference so the channel can
+// match the transfer to a PROCESSING payment order. A returned order only means
+// the channel accepted the reference; rely on the webhook or a query for the
+// final status. CHANNEL_ERROR means the channel did not accept it and the order
+// stays PROCESSING.
+func (c *Client) SupplementPayment(ctx context.Context, req *SupplementPaymentReq, opts ...RequestOption) (*PaymentOrder, error) {
+	if req == nil {
+		return nil, ErrNilRequest
+	}
+	body := SupplementPaymentReq{
+		OrderNo:         strings.TrimSpace(req.OrderNo),
+		MerchantOrderNo: strings.TrimSpace(req.MerchantOrderNo),
+		TradeNo:         strings.TrimSpace(req.TradeNo),
+	}
+	if body.TradeNo == "" {
+		return nil, fmt.Errorf("%w: tradeNo is required", ErrInvalidRequest)
+	}
+	if (body.OrderNo == "") == (body.MerchantOrderNo == "") {
+		return nil, fmt.Errorf("%w: exactly one of orderNo and merchantOrderNo is required", ErrInvalidRequest)
+	}
+	var out PaymentOrder
+	if err := c.doWrite(ctx, "/api/v1/payments/trade-no", &body, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *Client) QueryPaymentByOrderNo(ctx context.Context, orderNo string) (*PaymentOrder, error) {
 	var out PaymentOrder
 	if err := c.doRead(ctx, "/api/v1/payments", url.Values{"orderNo": {orderNo}}, &out); err != nil {

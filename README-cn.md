@@ -78,8 +78,9 @@ order, err := c.CreatePayment(ctx, &deepayment.CreatePaymentReq{
 将付款人跳转到 `order.Action.Url` 的渠道收银台。三种方式独立选择，不自动切换；
 打开链接或浏览器回跳不表示到账，最终结果以查询或验签后的平台 Webhook 为准。
 
-ARS 代付只使用 `BANK_TRANSFER`，`AccountType` 必须为字符串 `"CBU"` 或 `"CVU"`；
-`AccountNo` 使用数字字符串保留前导零。手机号格式与代收相同，其余八个收款字段必填，`Address` 可选。
+ARS 代付使用 `BANK_TRANSFER`，`AccountType` 支持字符串 `"CBU"`、`"CVU"` 或 `"ALIAS"`。
+CBU/CVU 的 `AccountNo` 使用数字字符串保留前导零；ALIAS 的 `AccountNo` 填写非空别名，例如 `"miempresa.cbu"`。
+使用 ALIAS 前，请与平台确认可用性。手机号格式与代收相同，其余八个收款字段必填，`Address` 可选。
 缺省、`null` 和空字符串均表示无地址，非空字符串原样保留，数字、布尔值、数组和对象会被拒绝。
 Go 类型化字段为空时省略；`SetExtra` 可以显式传入 `null` 或空字符串。`DocumentType` 和 `DocumentNumber` 不能为空：
 
@@ -111,6 +112,21 @@ Plin；`AccountNo` 是钱包收款标识，`CustomerPhone` 是联系电话。银
 `BANK_TRANSFER` / `BankTransfer`，提供 `SAVINGS` 或 `CHECKING` 的 `AccountType`
 及 20 位 `CciNo`。账号保持字符串。示例中的身份及账户资料均为虚构，实际请求前必须替换；
 支付方式是否可用以商户配置为准。
+
+### 提交付款人的转账凭证号（补单）
+
+付款人已付款但订单仍是 `PROCESSING` 时，把付款人提供的凭证号提交上来（印度 UPI 为 12 位 UTR）。
+`OrderNo` 与 `MerchantOrderNo` 二选一。
+
+```go
+order, err := c.SupplementPayment(ctx, &deepayment.SupplementPaymentReq{
+	MerchantOrderNo: "M1",
+	TradeNo:         "412345678901",
+})
+```
+
+返回订单只代表渠道已接受凭证号，最终状态仍以 webhook 或查单为准。
+`APIError.Msg == "CHANNEL_ERROR"` 表示渠道未接受，订单保持 `PROCESSING`。
 
 ### 错误分两类，处置相反
 

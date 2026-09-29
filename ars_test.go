@@ -31,10 +31,14 @@ func arsPaymentMethod(code string) PaymentMethod {
 }
 
 func arsPayoutMethod(accountType string) PayoutMethod {
+	accountNo := "0000003100012345678901"
+	if accountType == "ALIAS" {
+		accountNo = "Mi.Empresa.CBU"
+	}
 	return PayoutMethod{Code: MethodCodeBankTransfer, BankTransfer: &PayoutBankTransferExtra{
 		FirstName: "Ana", LastName: "Perez", Email: "ana@example.com", Phone: "1123456789",
 		Address: "Av Example 123", DocumentType: "DNI", DocumentNumber: "30123456",
-		AccountType: accountType, AccountNo: "0000003100012345678901",
+		AccountType: accountType, AccountNo: accountNo,
 	}}
 }
 
@@ -77,7 +81,7 @@ func TestARSPaymentSignsSealsAndPreservesFields(t *testing.T) {
 }
 
 func TestARSPayoutSignsSealsAndPreservesAccount(t *testing.T) {
-	for _, accountType := range []string{"CBU", "CVU"} {
+	for _, accountType := range []string{"CBU", "CVU", "ALIAS"} {
 		t.Run(accountType, func(t *testing.T) {
 			k := newTestKeys(t)
 			cap := &capture{}
@@ -185,7 +189,7 @@ func TestARSDocumentPhoneIsOptionalOutsideCVU(t *testing.T) {
 }
 
 func TestARSPayoutOptionalAddressWire(t *testing.T) {
-	for _, accountType := range []string{"CBU", "CVU"} {
+	for _, accountType := range []string{"CBU", "CVU", "ALIAS"} {
 		for _, tc := range []struct {
 			name    string
 			raw     bool
@@ -243,7 +247,7 @@ func TestARSPayoutOptionalAddressWire(t *testing.T) {
 }
 
 func TestARSPayoutAddressRejectsNonString(t *testing.T) {
-	for _, accountType := range []string{"CBU", "CVU"} {
+	for _, accountType := range []string{"CBU", "CVU", "ALIAS"} {
 		for _, tc := range []struct {
 			name    string
 			address any
@@ -334,7 +338,7 @@ func TestARSAddressTypeCheckDoesNotAffectOtherRequests(t *testing.T) {
 }
 
 func TestARSPayoutSetExtraReplacesTypedRecipient(t *testing.T) {
-	for _, accountType := range []string{"CBU", "CVU"} {
+	for _, accountType := range []string{"CBU", "CVU", "ALIAS"} {
 		for _, tc := range []struct {
 			name, address            string
 			present, missingDocument bool

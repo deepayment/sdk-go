@@ -83,9 +83,9 @@ Redirect the payer to the channel checkout at `order.Action.Url`. Select each me
 explicitly; they do not switch automatically. Opening the checkout or returning to
 your site does not confirm payment. Use order queries or verified platform webhooks.
 
-ARS payouts use `BANK_TRANSFER`. Set `AccountType` to the string `"CBU"` or `"CVU"`,
-and keep `AccountNo` as a digit string to preserve leading zeros. The same phone
-format applies. The eight other recipient fields are required; `Address` is optional.
+ARS payouts use `BANK_TRANSFER`. Set `AccountType` to `"CBU"`, `"CVU"` or `"ALIAS"`.
+For CBU/CVU, keep `AccountNo` as a digit string to preserve leading zeros. For ALIAS,
+set `AccountNo` to a non-empty alias such as `"miempresa.cbu"`. Confirm ALIAS availability with the platform before use. The same phone format applies. The eight other recipient fields are required; `Address` is optional.
 Omission, `null` and an empty string all mean no address; non-empty strings are
 preserved, and numbers, booleans, arrays and objects are rejected. The typed Go
 field omits an empty string; `SetExtra` can supply an explicit `null` or empty
@@ -123,6 +123,24 @@ contact information. Bank payouts use `BANK_TRANSFER` / `BankTransfer`, with
 as strings. All identity and account details in the examples are fictional;
 replace them before sending a real request. Method availability depends on your
 merchant configuration.
+
+### Submitting the payer's transfer reference
+
+When the payer paid but the order is still `PROCESSING`, submit the reference
+they give you (for India UPI, the 12-digit UTR). Pass exactly one of `OrderNo`
+or `MerchantOrderNo`.
+
+```go
+order, err := c.SupplementPayment(ctx, &deepayment.SupplementPaymentReq{
+	MerchantOrderNo: "M1",
+	TradeNo:         "412345678901",
+})
+```
+
+A returned order only means the channel accepted the reference; the final
+status still comes from the webhook or a query. An `APIError` with
+`Msg == "CHANNEL_ERROR"` means the channel did not accept it and the order
+stays `PROCESSING`.
 
 ### Two kinds of failure, opposite handling
 

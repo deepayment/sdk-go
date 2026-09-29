@@ -2,6 +2,16 @@
 
 Versions follow SemVer. Tags are `vX.Y.Z` on this repository.
 
+## v0.7.0 — 2026-09-29
+
+- Add `SupplementPayment` (`POST /api/v1/payments/trade-no`): submit the payer's
+  transfer reference (for example an India UPI UTR) for a `PROCESSING` pay-in.
+- `ARS` payouts accept `ALIAS` as a third `accountType` next to `CBU` and `CVU`;
+  `accountNo` then carries the alias (for example `miempresa.cbu`) instead of a digit
+  string. No validation rule changed — `accountNo` and `accountType` were already
+  required for every `ARS` payout, and the rules constrain which fields are present,
+  not their values. Confirm `ALIAS` availability with the platform before using it.
+
 ## v0.6.0 — 2026-09-24
 
 - Support payout `REFUNDED` results with `refundNo`, `refundAmount`, and `refundTime`; payment statuses are unchanged.

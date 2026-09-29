@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+// SupplementPaymentReq submits the payer's transfer reference (for example an
+// India UPI UTR) for a payment order that is still PROCESSING. Set exactly one
+// of OrderNo or MerchantOrderNo.
+type SupplementPaymentReq struct {
+	OrderNo         string `json:"orderNo,omitempty"`
+	MerchantOrderNo string `json:"merchantOrderNo,omitempty"`
+	TradeNo         string `json:"tradeNo"`
+}
+
 type CreatePaymentReq struct {
 	MerchantOrderNo string        `json:"merchantOrderNo"`
 	Currency        string        `json:"currency"`

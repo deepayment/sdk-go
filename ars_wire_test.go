@@ -38,7 +38,7 @@ func arsWireCreate(c *Client, method any, opts ...RequestOption) error {
 }
 
 func TestARSWireExplicitExtraMatchesTypedRequest(t *testing.T) {
-	for _, name := range []string{MethodCodeBankTransfer, MethodCodeCVU, MethodCodeQRIS, "payout-CBU", "payout-CVU"} {
+	for _, name := range []string{MethodCodeBankTransfer, MethodCodeCVU, MethodCodeQRIS, "payout-CBU", "payout-CVU", "payout-ALIAS"} {
 		t.Run(name, func(t *testing.T) {
 			// An independently spelled map catches field-name drift between typed and dynamic callers.
 			extra := map[string]any{
@@ -49,6 +49,9 @@ func TestARSWireExplicitExtraMatchesTypedRequest(t *testing.T) {
 			if accountType, payout := strings.CutPrefix(name, "payout-"); payout {
 				extra["phone"], extra["address"] = "1123456789", "Av Example 123"
 				extra["accountType"], extra["accountNo"] = accountType, "0000003100012345678901"
+				if accountType == "ALIAS" {
+					extra["accountNo"] = "Mi.Empresa.CBU"
+				}
 				typed = arsPayoutMethod(accountType)
 				m := PayoutMethod{Code: MethodCodeBankTransfer}
 				if err := m.SetExtra("bankTransfer", extra); err != nil {
