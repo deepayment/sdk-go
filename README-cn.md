@@ -170,8 +170,7 @@ wh, err := c.ParsePayoutWebhook(r)   // 严格 orderType=PAYOUT
 
 验证顺序：nil 检查 -> shape -> Content-Digest 校验 body -> `Webhook-Event-Id` 与 body
 `eventId` 一致 -> 用 `Signature-Input` 里 `keyid` 对应的平台 Ed25519 公钥验签。签名有效期
-是短窗口，平台每次投递都会重新签名。按 `eventId` 做投递去重，按 `orderNo` 或
-`merchantOrderNo` 对订单状态更新做业务幂等。成功返回 2xx，否则平台重试。
+是短窗口，平台每次投递都会重新签名。按 `eventId` 做投递去重，先按创建时保存的平台 `orderNo` 核对本商户订单归属、类型、币种和金额，再对已确认订单做业务幂等。未知平台订单先可靠入队，用本商户凭据查单确认，不能只凭商户订单号入账或退款。成功返回 2xx，否则平台重试。
 
 ### Failure 字段（`status=FAILED` 时存在）
 
@@ -214,3 +213,5 @@ _ = m.SetExtra("newMethod", map[string]any{"customerName": "X", "bankCode": "001
 ```sh
 go test -race ./...       # 全套测试
 ```
+
+官方 SDK 可选，可用获批密码库自行实现同一协议，参见[直接接入指南](./protocol/direct-integration.md)。

@@ -20,6 +20,7 @@ type PaymentWebhook struct {
 	MerchantOrderNo string          `json:"merchantOrderNo"`
 	Status          string          `json:"status"`
 	Currency        string          `json:"currency"`
+	PaymentMethod   string          `json:"paymentMethod,omitempty"`
 	Amount          string          `json:"amount"`
 	PaidAmount      string          `json:"paidAmount,omitempty"`
 	Payer           *PaymentPayer   `json:"payer,omitempty"`
@@ -40,8 +41,31 @@ type PayoutWebhook struct {
 	Currency        string          `json:"currency"`
 	Amount          string          `json:"amount"`
 	ChannelTradeNo  string          `json:"channelTradeNo,omitempty"`
+	Receiver        *PayoutReceiver `json:"receiver,omitempty"`
+	Sender          *PayoutSender   `json:"sender,omitempty"`
 	Attach          string          `json:"attach,omitempty"`
 	Failure         *WebhookFailure `json:"failure,omitempty"`
+}
+
+type PayoutSender struct {
+	Name           string `json:"name,omitempty"`
+	DocumentType   string `json:"documentType,omitempty"`
+	DocumentNumber string `json:"documentNumber,omitempty"`
+	BankCode       string `json:"bankCode,omitempty"`
+	BankName       string `json:"bankName,omitempty"`
+	BankBranch     string `json:"bankBranch,omitempty"`
+	AccountNumber  string `json:"accountNumber,omitempty"`
+	AccountSuffix  string `json:"accountSuffix,omitempty"`
+}
+
+type PayoutReceiver struct {
+	Name           string `json:"name,omitempty"`
+	DocumentType   string `json:"documentType,omitempty"`
+	DocumentNumber string `json:"documentNumber,omitempty"`
+	KeyType        string `json:"keyType,omitempty"`
+	Key            string `json:"key,omitempty"`
+	BankCode       string `json:"bankCode,omitempty"`
+	BankName       string `json:"bankName,omitempty"`
 }
 
 type WebhookFailure struct {

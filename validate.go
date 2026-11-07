@@ -160,10 +160,23 @@ func validatePaymentMethod(currency string, m PaymentMethod) error {
 	if err != nil {
 		return fmt.Errorf("%w: encode paymentMethod: %w", ErrInvalidRequest, err)
 	}
+	if strings.TrimSpace(m.Code) == AggregatePaymentCode {
+		if strings.TrimSpace(currency) == "" || strings.EqualFold(strings.TrimSpace(currency), AggregatePaymentCode) {
+			return fmt.Errorf("%w: aggregate currency", ErrInvalidRequest)
+		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(raw, &fields) != nil || len(fields) != 1 {
+			return fmt.Errorf("%w: aggregate payment is code-only", ErrConflictingMethodExtra)
+		}
+		return nil
+	}
 	return validateMethod(currency, raw, m.Code, paymentMethodRules)
 }
 
 func validatePayoutMethod(currency string, m PayoutMethod) error {
+	if strings.TrimSpace(m.Code) == AggregatePaymentCode {
+		return fmt.Errorf("%w: aggregate is payment-only", ErrMethodNotAvailable)
+	}
 	raw, err := m.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("%w: encode payoutMethod: %w", ErrInvalidRequest, err)

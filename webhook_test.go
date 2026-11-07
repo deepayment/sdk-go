@@ -213,3 +213,78 @@ func TestParsePaymentWebhookPayer(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePayoutWebhookSender(t *testing.T) {
+	k := newTestKeys(t)
+	c := k.client(t, "https://api.example.com")
+	eid := newEventID()
+	for _, tc := range []struct {
+		name, senderJSON string
+		want             *PayoutSender
+	}{
+		{"absent", "", nil},
+		{"null", `,"sender":null`, nil},
+		{"empty", `,"sender":{}`, &PayoutSender{}},
+		{"name only", `,"sender":{"name":"João Silva"}`, &PayoutSender{Name: "João Silva"}},
+		{"account only", `,"sender":{"accountNumber":"000123"}`, &PayoutSender{AccountNumber: "000123"}},
+		{"complete", `,"sender":{"name":"Sender Company","documentType":"CNPJ","documentNumber":"01234567000189","bankCode":"00000000","bankName":"Source Bank","bankBranch":"0001","accountNumber":"000123","accountSuffix":"9"}`,
+			&PayoutSender{Name: "Sender Company", DocumentType: "CNPJ", DocumentNumber: "01234567000189", BankCode: "00000000", BankName: "Source Bank", BankBranch: "0001", AccountNumber: "000123", AccountSuffix: "9"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := []byte(`{"eventId":"` + eid + `","orderType":"PAYOUT","orderNo":"PO1","merchantOrderNo":"M1","status":"SUCCEEDED","currency":"BRL","amount":"10.00","receiver":{"name":"Receiver"}` + tc.senderJSON + `}`)
+			got, err := c.ParsePayoutWebhook(signWebhook(t, k, body, eid))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got.Sender, tc.want) || got.Receiver.Name != "Receiver" || got.Amount != "10.00" {
+				t.Fatalf("unexpected payout webhook: %+v", got)
+			}
+			if tc.want != nil && tc.want.AccountNumber != "" {
+				r := signWebhook(t, k, body, eid)
+				r.Body = io.NopCloser(strings.NewReader(strings.Replace(string(body), "000123", "999123", 1)))
+				if _, err := c.ParsePayoutWebhook(r); err == nil {
+					t.Fatal("tampered sender must fail verification")
+				}
+			}
+		})
+	}
+}
+
+func TestParsePayoutWebhookReceiver(t *testing.T) {
+	k := newTestKeys(t)
+	c := k.client(t, "https://api.example.com")
+	eid := newEventID()
+	for _, tc := range []struct {
+		name, receiverJSON string
+		want               *PayoutReceiver
+	}{
+		{"absent", "", nil},
+		{"null", `,"receiver":null`, nil},
+		{"empty", `,"receiver":{}`, &PayoutReceiver{}},
+		{"name only", `,"receiver":{"name":"João Silva"}`, &PayoutReceiver{Name: "João Silva"}},
+		{"document only", `,"receiver":{"documentNumber":"01234567890"}`, &PayoutReceiver{DocumentNumber: "01234567890"}},
+		{"complete", `,"receiver":{"name":"Maria Silva","documentType":"CPF","documentNumber":"01234567890","keyType":"PIX","key":"pix-key","bankCode":"00000000","bankName":"Banco do Brasil"}`,
+			&PayoutReceiver{Name: "Maria Silva", DocumentType: "CPF", DocumentNumber: "01234567890", KeyType: "PIX", Key: "pix-key", BankCode: "00000000", BankName: "Banco do Brasil"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := []byte(`{"eventId":"` + eid + `","orderType":"PAYOUT","orderNo":"PO1","merchantOrderNo":"M1","status":"SUCCEEDED","currency":"BRL","amount":"10.00","channelTradeNo":"E2E1"` + tc.receiverJSON + `}`)
+			got, err := c.ParsePayoutWebhook(signWebhook(t, k, body, eid))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got.Receiver, tc.want) {
+				t.Fatalf("receiver=%+v, want %+v", got.Receiver, tc.want)
+			}
+			if got.Amount != "10.00" || got.Status != "SUCCEEDED" || got.ChannelTradeNo != "E2E1" {
+				t.Fatalf("existing fields changed: %+v", got)
+			}
+			if tc.want != nil && tc.want.DocumentNumber != "" {
+				r := signWebhook(t, k, body, eid)
+				r.Body = io.NopCloser(strings.NewReader(strings.Replace(string(body), "01234567890", "11234567890", 1)))
+				if _, err := c.ParsePayoutWebhook(r); err == nil {
+					t.Fatal("tampered receiver must fail verification")
+				}
+			}
+		})
+	}
+}

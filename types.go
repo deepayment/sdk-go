@@ -185,6 +185,9 @@ type PaymentCustomerDocumentEmailExtra struct {
 	DocumentNumber string `json:"documentNumber,omitempty"`
 	CustomerName   string `json:"customerName,omitempty"`
 	CustomerEmail  string `json:"customerEmail,omitempty"`
+	FirstName      string `json:"firstName,omitempty"`
+	LastName       string `json:"lastName,omitempty"`
+	CustomerPhone  string `json:"customerPhone,omitempty"`
 }
 
 // PaymentSpeiExtra holds the MXN SPEI pay-in extra fields.

@@ -2,6 +2,17 @@
 
 Versions follow SemVer. Tags are `vX.Y.Z` on this repository.
 
+## v0.8.0 — 2026-11-07
+
+- Decode optional payout `receiver` and `sender` details in signed webhooks; retain support for older events without these fields.
+
+- Decode the optional `paymentMethod` in signed payment webhooks, including the selected method for aggregate orders; retain support for older events without this field.
+
+- Support code-only `ALL` payments through aggregate hosted checkout; preserve ordinary method validation and reject aggregate payouts.
+
+- Add optional `firstName`, `lastName`, and `customerPhone` to CLP payment
+  details while keeping the existing public payload type and required fields.
+
 ## v0.7.0 — 2026-09-29
 
 - Add `SupplementPayment` (`POST /api/v1/payments/trade-no`): submit the payer's

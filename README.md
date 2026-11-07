@@ -8,6 +8,8 @@ Signatures). POST bodies are sealed to the platform's X25519 public key
 `NewClient` rejects non-HTTPS BaseURLs. Synchronous responses remain plaintext
 JSON and rely on HTTPS/TLS for confidentiality and integrity.
 
+The SDK is optional. You may implement the same wire protocol with an approved crypto library and your existing framework; see [direct integration](./protocol/direct-integration.md).
+
 ## 0. Installation
 
 ```
@@ -198,7 +200,7 @@ Verification order: nil check -> shape -> Content-Digest over the body ->
 the `keyid` in `Signature-Input`. Signatures are fresh for a short window, so the
 platform re-signs every delivery attempt. Deduplicate delivery side effects by
 `eventId`, make order state updates
-idempotent by `orderNo` or `merchantOrderNo`, and return 2xx on success or the
+idempotent by the verified platform `orderNo`, and return 2xx on success or the
 platform retries.
 
 ### Failure fields (present when `status=FAILED`)
@@ -241,3 +243,22 @@ signature wire spec, the sealed-box envelope spec, and fixed test vectors.
 ```sh
 go test -race ./...       # full test suite
 ```
+
+## Webhook order matching
+
+Save the platform `orderNo` returned by creation under the expected merchant. After verification, match that number to the saved order and check order type, merchant order number, currency and applicable amounts before updating state. Do not credit or refund using `merchantOrderNo` alone. For an unknown platform order, reliably queue the event and query by `orderNo` with your own credentials before applying it. Deduplicate by `eventId`, commit the business update or durable queue acceptance before returning 2xx, and retry queued failures internally. See [webhook processing](./protocol/webhook.md#order-ownership-before-state-changes).
+
+## Aggregate hosted checkout
+
+Create a payment through the existing payment endpoint with a specific `currency`
+and `paymentMethod: {"code":"ALL"}`. Do not include method-specific payloads.
+The payer selects an available method and provides any required payer details on
+`action.url`. Availability depends on the merchant configuration and enabled
+payment capabilities; an SDK rule does not imply that a currency is enabled.
+
+Keep the complete `action.url`, including its fragment. Treat it as a private
+checkout link. Queries keep returning that entry URL after selection, while the
+order's payment method changes from `ALL` to the selected method. A successful
+create or browser return does not prove payment: verify the signed webhook or
+query the order. On timeout, query or retry with the same merchant order number
+and unchanged business fields. `ALL` is unavailable for payouts and subscriptions.

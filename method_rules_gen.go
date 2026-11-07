@@ -4,6 +4,8 @@ package deepayment
 
 import "regexp"
 
+const AggregatePaymentCode = "ALL"
+
 // Top-level create-order field rules, from protocol/data/request-rules.json.
 var (
 	createRequiredTextFields = []string{"merchantOrderNo", "currency"}
